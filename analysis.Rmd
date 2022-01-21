@@ -1,0 +1,385 @@
+---
+title: "Analysis Updates and Results"
+author: "~CB"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(sjPlot)
+```
+
+## Data Set: Sampling
+
+We randomly sampled and hand-coded 400 posts from a data base of 9 million + 
+Facebook posts with images from US schools' and districts' pages.
+
+We tried to predict whether there was *at least* 1 identifiable student in the image
+through social media variables (e.g., number of comments) and NCES district
+variables (e.g., number of students in district).
+
+We were able to assign NCES district IDs to the following % of these sampled posts:
+
+```{r}
+d <- targets::tar_read(final_cleaned_sample)
+round(d$nces_id_district %>% is.na() %>% `!` %>% sum() / nrow(d), 4) * 100
+```
+Given that some NCES districts did not report data to the NCES and appeared 
+as missing values in the NCES records, we were able to collect NCES district
+data for the following % of the sampled posts (estimation based on how many districts
+reported their total number of students):
+
+```{r}
+round(d$districts_n_students %>% is.na() %>% `!` %>% sum() / nrow(d), 4) * 100
+```
+
+We checked whether posts for which there were no NCES district data 
+systematically differ in terms of the 
+number of identifiable students in them through creating a binary variable
+representing whether the post belonged to a district for which no NCES
+data was available. This variable correlated -.02 with the number of 
+identifiable students such that we omitted these posts from further analyses.
+
+## Data Set: Variables and Descriptives
+
+### Engagement Variables
+
+We summed the number of likes, shares, love, wow, haha, care emoji reactions to a overall, positive engagement metric, since these 
+reactions tended to exhibit moderate to high correlations with each other (see Appendix A).
+
+We kept the number of comments as a separate engagement metric since it did not clearly correlate with either positive or negative (i.e. angry and sad
+emoji reactions) engagement variables.
+
+We did not include negative engagement metrics (sad, angry emoji reactions) into our analysis since a high percentage
+of posts did not include any of these reactions:
+
+```{r}
+round(sum(d$neg_interaction_count == 0) / nrow(d), 4) * 100
+```
+
+### Baseline Model / Selection of Control Variables
+
+To identify control variables for our modeling, we employed a 
+GLM (binomial link) LASSO regression grid search, maximizing AUC
+on a 25% test set. LASSO regression introduces a penalty parameter
+which is subtracted from the model's $\beta$ coefficients. 
+Grid search tries to find the optimal
+penalty parameter value to maximize classification performance
+on test set. In effect, all parameters that are shrunk to 0 on the
+optimal model fit were not used as control parameters in our modeling.
+
+We tried to search for control variables in the following set
+of features:
+
+1. Number of Students, Teachers, and Schools in District (from NCES records)
+* districts_n_students,
+* districts_n_students_hispanic,
+* districts_n_students_black,
+* districts_n_students_white,
+* districts_n_students_multirace,
+* districts_n_schools, 
+* districts_pupil_teacher_ratio,
+* districts_n_students_native,   
+* districts_n_students_asian,   
+* districts_n_students_hawaiian,  
+
+2. Whether the account is a school account or district account
+* is_school
+
+3. Administrative and Geographical District Types (from NCES records)
+* districts_agency_type_district_2017_18  
+  * Levels appearing in our sample:
+    * 1-Regular local school district that is NOT a component of a supervisory union, 328 cases
+    * 2-Local school district that is a component of a supervisory union, 5 cases
+    * 7-Independent Charter District, 30 cases
+
+```{r}
+
+d$districts_agency_type_district_2017_18 %>% table()
+
+```
+* districts_urban_centric_locale_district_2017_18,
+  * Levels appearing in our sample:
+    * 11-City: Large, 30 cases
+    * 12-City: Mid-size, 24 cases
+    * 13-City: Small, 14 cases
+    * 21-Suburb: Large 103 cases
+    * 22-Suburb: Mid-size, 16 cases
+    * 23-Suburb: Small, 8 cases
+    * 31-Town: Fringe, 10 cases
+    * 32-Town: Distant, 35 cases
+    * 33-Town: Remote,  15 cases
+    * 41-Rural: Fringe, 43 cases
+    * 42-Rural: Distant, 51 cases
+    * 43-Rural: Remote, 14 cases
+    
+```{r}
+d$districts_urban_centric_locale_district_2017_18 %>% table()
+
+```
+    
+4. Further control variables
+* n_posts_account (total number of posts in data set posted by the specific account)
+
+5. % district poverty estimates of SAIPR
+* average if multiple matches with nces district
+* coverage of 90.75% of cases in our data set of 400 posts
+
+The following variables were not included in the grid search since they
+included a disproportionately high frequency of missing values (which
+would have resulted in the omission of a high number of observations
+prior to modeling):
+
+* districts_lea_charter_status_district_2017_18, # not used due to 75 NAs in 400 posts
+  * Levels:
+    * "Not a charter district  State has charter LEAs but this LEA is not a charter LEA" 
+    * "Charter district which is an LEA for programs authorized under IDEA ESEA and Perkins" 
+    * "Charter district which is an LEA for programs authorized under IDEA but not under ESEA and Perkins"
+    
+**After only selecting complete observations (for an overview on the percentages of missing values**
+**for all variables, see Appendix C), the grid search suggested to include locale and agency type**
+**into our baseline model.**
+    
+In addition, the correlation of all numeric and dichotomous variables with the total
+number of identifiable students in the posts we sampled was smaller than |.05|,
+which is more thoroughly reported in Appendix B.
+
+To estimate how representative our hand-coded sample is of the US, we exported
+the distribution of states (but did not include a corresponding variable into our modeling due
+to the large number of factor levels):
+
+```{r}
+d$state %>% table() %>% sort() %>% rev() %>% knitr::kable()
+```
+
+### Variables of Theoretical Interest
+
+1. Engagement Variables: We considered that posts putting students at privacy risk result in higher engagement rates:
+  * interaction_count (sum of likes, shares, love, wow, haha, care emoji reactions, see rationale above)
+  * comment_count (number of comments)
+  * account_subscriber_count (number of subscribers of the account, also functions as control variable for engagement variables)
+2. Time Variables: We considered privacy risks, and the effect of engagement variables (interaction effects), to increase over time:
+  * year_of_post (interpreted as a metric, not a categorical, variables)
+
+### Descriptive Statistics of Variables
+
+After only selecting complete observations (for an overview on the percentages of missing values
+for all variables, see Appendix C), we created descriptive statistics on all variables
+used in our grid search and variables of interest for *N* = 348 hand-coded posts with images.
+
+```{r}
+d <- targets::tar_read(binary_modeling_data)
+d %>% skimr::skim()
+```
+
+## Results and Model Tables
+
+### Predicitive Validity of Models on Unseen Data
+
+To evaluate the accuracy of predicting whether images contained 
+*at least* one identifiable student on a test set, we exported the 
+accuracy (%) and AUC value (taking into account uneven class distributions)
+for the best model (based on AUC) after LASSO grid searches.
+We did this for:
+
+1. The initial grid search for control variables:
+
+```{r}
+targets::tar_read(baseline_model_gridsearched)$accuracy %>% 
+  knitr::kable()
+```
+2. A model featuring the control variables suggested by the initial grid search (increasing N to 363)
+and the variables of interest (positive engagement, number of comments, number of subscribers, year of the post)
+as *additive factors*.
+
+```{r}
+targets::tar_read(additive_model_gridsearched)$accuracy %>% 
+  knitr::kable()
+```
+
+3. A model featuring the control variables suggested by the initial grid search (increasing N to 363)
+and positive engagement, number of comments, and number of subscribers each
+*in interaction* with year of the post.
+
+```{r}
+targets::tar_read(interaction_model_gridsearched)$accuracy %>% 
+  knitr::kable()
+```
+
+### Model Comparison
+
+We compared 
+
+1. the baseline model
+2. a model additionally featuring the year of the post
+3. a model additionally featuring the positive engagement count (e.g., likes, shares) and number of subscribers
+4. a model additionally featuring the number of comments
+5. a model additionally featuring the interaction of all engagement metrics with the year of the post
+
+through likelihood-ratio tests, fitting each model to the full data set of *N* = 363 posts.
+
+```{r}
+out <- targets::tar_read(conventional_model_comparison)
+out$model_table %>% 
+  tibble() %>% 
+  janitor::clean_names() %>% 
+  select(-resid_df) %>% 
+  mutate(AIC = out$AIC_values, .before='resid_dev') %>% 
+  mutate(AIC_Weights = out$AIC_weights, .after='AIC') %>% 
+  mutate(BIC = out$BIC_values, .after='AIC_Weights') %>% 
+  mutate(BIC_Weights = out$BIC_weights, .after='BIC') %>% 
+  mutate(Model = c(
+    'Null Model',
+    '+ Gridsearched Variables',
+    '+ Year of Post',
+    '+ Positive Engagement',
+    '+ Comment Count',
+    '+ Interaction Effects YoP'
+  ), .before='AIC') %>% 
+  mutate(
+    AIC = round(AIC, 2),
+    AIC_Weights = round(AIC_Weights, 2),
+    BIC = round(BIC, 2),
+    BIC_Weights = round(BIC_Weights, 2),
+    resid_dev = round(resid_dev, 2),
+    deviance = round(deviance, 2),
+    pr_chi = round(pr_chi, 3)
+  ) %>% 
+  knitr::kable()
+out$AIC_values
+```
+While the interaction model rejected the model with additive factors for
+positive engagement, comments, and year of the post, the model might
+not be the most favorable based on its AIC value and model complexity.
+
+```{r}
+out <- targets::tar_read(direct_model_comparison_identifiable_students)
+out$model_table %>% 
+  tibble() %>% 
+  janitor::clean_names() %>% 
+  select(-resid_df) %>% 
+  mutate(AIC = out$AIC_values, .before='resid_dev') %>% 
+  mutate(AIC_Weights = out$AIC_weights, .after='AIC') %>% 
+  mutate(BIC = out$BIC_values, .after='AIC_Weights') %>%
+  mutate(BIC_Weights = out$BIC_weights, .after='BIC') %>%
+  mutate(Model = c(
+    'Null Model',
+    'Full Interaction Model YoP'
+  ), .before='AIC') %>% 
+  mutate(
+    AIC = round(AIC, 2),
+    AIC_Weights = round(AIC_Weights, 2),
+    BIC = round(BIC, 2),
+    BIC_Weights = round(BIC_Weights, 2),
+    resid_dev = round(resid_dev, 2),
+    deviance = round(deviance, 2),
+    pr_chi = round(pr_chi, 3)
+  ) %>% 
+  knitr::kable()
+
+```
+
+  
+### Modeling for Inference and Model Tables
+
+We then looked at the individual coefficients of these models.
+
+```{r}
+
+ms <- targets::tar_read(exported_models)
+tab_model(ms$m4)
+
+```
+
+Note: Variables have been scaled prior to model fitting
+
+## Update: Modeling for Other Target Variables
+
+We repeated the procedure described above for two additional target variables:
+
+1. Whether any face (student, staff, community) was connected
+2. Whether any student was depicted in the image (identifiable or not) 
+
+### Whether any student was depicted in the image (identifiable or not) 
+
+#### Grid search results
+
+```{r}
+
+targets::tar_read(baseline_model_gridsearched_any_student_face)$selected_predictors
+
+```
+
+#### Accuracy on test set
+
+```{r}
+targets::tar_read(baseline_model_gridsearched_any_student_face)$accuracy %>% 
+  knitr::kable()
+
+targets::tar_read(additive_model_gridsearched_any_student_face)$accuracy %>%
+  knitr::kable()
+
+targets::tar_read(interaction_model_gridsearched_any_student_face)$accuracy %>% 
+  knitr::kable()
+```
+
+#### Likelihood-ratio tests
+
+```{r}
+
+out <- targets::tar_read(conventional_model_comparison_any_student_face)
+out$model_table %>% 
+  tibble() %>% 
+  janitor::clean_names() %>% 
+  select(-resid_df) %>% 
+  mutate(AIC = out$AIC_values, .before='resid_dev') %>% 
+  mutate(AIC_Weights = out$AIC_weights, .after='AIC') %>% 
+  mutate(BIC = out$BIC_values, .after='AIC_Weights') %>%
+  mutate(BIC_Weights = out$BIC_weights, .after='BIC') %>%
+    mutate(Model = c(
+    'Null Model',
+    '+ Gridsearched Variables',
+    '+ Year of Post',
+    '+ Positive Engagement',
+    '+ Comment Count',
+    '+ Interaction Effects YoP'
+  ), .before='AIC') %>% 
+  mutate(
+    AIC = round(AIC, 2),
+    AIC_Weights = round(AIC_Weights, 2),
+    BIC = round(BIC, 2),
+    BIC_Weights = round(BIC_Weights, 2),
+    resid_dev = round(resid_dev, 2),
+    deviance = round(deviance, 2),
+    pr_chi = round(pr_chi, 3)
+  ) %>% 
+  knitr::kable()
+out$AIC_values
+
+```
+
+#### Individual model tables
+
+```{r}
+ms <- targets::tar_read(exported_models_any_student_face)
+tab_model(ms$m0)
+#tab_model(ms$m1)
+#tab_model(ms$m2)
+#tab_model(ms$m3)
+#tab_model(ms$m4)
+
+```
+
+## APPENDIX A: NA Stats
+
+```{r}
+targets::tar_read(na_stats) %>%
+ sort() %>%
+ rev() %>%
+ knitr::kable()
+```
+

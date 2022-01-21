@@ -1,0 +1,380 @@
+---
+title: "IRR"
+author: "Josh"
+date: "4/23/2021"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, echo = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(googlesheets4)
+library(janitor)
+library(irr)
+```
+
+### Round 1
+
+```{r, include = FALSE}
+irr3 <- read_sheet("https://docs.google.com/spreadsheets/d/1ov2m-i0zBg-jMKo5_p94x3TVfZA_fGgj4xH7J6WXGrA/edit?ts=6082e88f#gid=2109185526", sheet = 3,
+                   skip = 1, col_types = str_c(c("ccdddddddd",
+                                           "dddddddddd",
+                                           "dddddddddd",
+                                           "dcdddddddd",
+                                           "d"), collapse = ""))
+
+irr3 <- janitor::clean_names(irr3)
+
+irr3_ss_tt <- irr3 %>% slice(1:15) %>% as_tibble()
+irr3_ss_mb <- irr3 %>% slice(18:32) %>% as_tibble()
+
+# first names
+x1 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+x2 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+
+# last names
+x3 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+x4 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+
+# detectable
+x5 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+x6 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+
+# identifiable
+x7 <- irr::agree(data.frame(irr3_ss_tt$can_names_faces_be_connected_32, irr3_ss_mb$can_names_faces_be_connected_32))
+x8 <- irr::kappa2(data.frame(irr3_ss_tt$can_names_faces_be_connected_32, irr3_ss_mb$can_names_faces_be_connected_32))
+
+ynames <- c("first_names", "last_names", "detectable", "identifiable")
+
+y1 <- c(x1$value,
+  x3$value,
+  x5$value,
+  x7$value)
+
+y2 <- c(x2$value,
+  x4$value,
+  x6$value,
+  x8$value)
+```
+
+```{r}
+tab1 <- tibble(code = ynames,
+       n = nrow(irr3_ss_mb),
+       agree = y1,
+       kappa = y2) %>% 
+  mutate(round = 1)
+```
+
+### Round 2
+
+```{r, include = FALSE}
+irr3 <- read_sheet("https://docs.google.com/spreadsheets/d/1ov2m-i0zBg-jMKo5_p94x3TVfZA_fGgj4xH7J6WXGrA/edit?ts=6082e88f#gid=2109185526", sheet = 4,
+                   skip = 1, col_types = "ccdddddddddddddd")
+
+irr3 <- janitor::clean_names(irr3)
+
+irr3_ss_tt <- irr3 %>% slice(1:20) %>% as_tibble()
+irr3_ss_mb <- irr3 %>% slice(23:42) %>% as_tibble()
+
+# first names
+x1 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+x2 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+
+# last names
+x3 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+x4 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+
+# detectable
+x5 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+x6 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+
+# identifiable
+z1_1 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_7, irr3_ss_mb$how_many_names_faces_connected_7)
+
+x7 <- irr::agree(z1_1)
+
+z1_2 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_7, irr3_ss_mb$how_many_names_faces_connected_7)
+
+x8 <- irr::kappa2(z1_2)
+
+ynames <- c("first_names", "last_names", "detectable", "identifiable")
+
+y1 <- c(x1$value,
+  x3$value,
+  x5$value,
+  x7$value)
+
+y2 <- c(x2$value,
+  x4$value,
+  x6$value,
+  x8$value)
+```
+
+```{r}
+tab2 <- tibble(code = ynames,
+       n = nrow(irr3_ss_mb),
+       agree = y1,
+       kappa = y2) %>% 
+  mutate(round = 2)
+```
+
+### Round 3
+
+```{r, include = FALSE}
+irr3 <- read_sheet("https://docs.google.com/spreadsheets/d/1ov2m-i0zBg-jMKo5_p94x3TVfZA_fGgj4xH7J6WXGrA/edit?ts=6082e88f#gid=2109185526", sheet = 5,
+                   skip = 1, col_types = "ccddddddddddddddddd")
+
+irr3 <- janitor::clean_names(irr3)
+
+irr3_ss <- irr3 %>% 
+    select(number_of_student_first_names_in_post:how_many_names_faces_connected_8)
+
+irr3_ss_tt <- irr3_ss %>% slice(1:20) %>% as_tibble()
+irr3_ss_mb <- irr3_ss %>% slice(23:42) %>% as_tibble()
+
+# first names
+x1 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+x2 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+
+# last names
+x3 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+x4 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+
+# detectable
+x5 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+x6 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+
+# identifiable
+z2_1 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_8, irr3_ss_mb$how_many_names_faces_connected_8)
+x7 <- irr::agree(z2_1)
+
+z2_2 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_8, irr3_ss_mb$how_many_names_faces_connected_8)
+x8 <- irr::kappa2(z2_2)
+
+ynames <- c("first_names", "last_names", "detectable", "identifiable")
+
+y1 <- c(x1$value,
+  x3$value,
+  x5$value,
+  x7$value)
+
+y2 <- c(x2$value,
+  x4$value,
+  x6$value,
+  x8$value)
+```
+
+```{r}
+tab3 <- tibble(code = ynames,
+       n = nrow(irr3_ss_mb),
+       agree = y1,
+       kappa = y2) %>% 
+  mutate(round = 3)
+```
+
+### Round 4
+
+```{r, include = FALSE}
+irr3 <- read_sheet("https://docs.google.com/spreadsheets/d/1ov2m-i0zBg-jMKo5_p94x3TVfZA_fGgj4xH7J6WXGrA/edit?ts=6082e88f#gid=2109185526", sheet = 6,
+                   skip = 1, col_types = "ccddddddddddddddddd")
+
+irr3 <- janitor::clean_names(irr3)
+
+irr3_ss <- irr3 %>% 
+    select(number_of_student_first_names_in_post:how_many_names_faces_connected_8)
+
+irr3_ss_tt <- irr3_ss %>% slice(1:20) %>% as_tibble()
+irr3_ss_mb <- irr3_ss %>% slice(23:42) %>% as_tibble()
+
+# first names
+x1 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+x2 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+
+# last names
+x3 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+x4 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+
+# detectable
+x5 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+x6 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+
+# identifiable
+z2_1 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_8, irr3_ss_mb$how_many_names_faces_connected_8)
+x7 <- irr::agree(z2_1)
+
+z2_2 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_8, irr3_ss_mb$how_many_names_faces_connected_8)
+x8 <- irr::kappa2(z2_2)
+
+ynames <- c("first_names", "last_names", "detectable", "identifiable")
+
+y1 <- c(x1$value,
+  x3$value,
+  x5$value,
+  x7$value)
+
+y2 <- c(x2$value,
+  x4$value,
+  x6$value,
+  x8$value)
+```
+
+```{r}
+tab4 <- tibble(code = ynames,
+       n = nrow(irr3_ss_mb),
+       agree = y1,
+       kappa = y2) %>% 
+  mutate(round = 4)
+```
+
+## Round 5
+
+```{r, include = FALSE}
+irr3 <- read_sheet("https://docs.google.com/spreadsheets/d/1ov2m-i0zBg-jMKo5_p94x3TVfZA_fGgj4xH7J6WXGrA/edit?ts=6082e88f#gid=2109185526", sheet = 7,
+                   skip = 1, col_types = "ccddddddddddddddddd")
+
+irr3 <- janitor::clean_names(irr3)
+
+irr3_ss <- irr3 %>% 
+    select(number_of_student_first_names_in_post:how_many_names_faces_connected_8)
+
+irr3_ss_tt <- irr3_ss %>% slice(1:21) %>% as_tibble()
+irr3_ss_mb <- irr3_ss %>% slice(24:44) %>% as_tibble()
+
+# first names
+x1 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+x2 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+
+# last names
+x3 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+x4 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+
+# detectable
+x5 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+x6 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+
+# identifiable
+z2_1 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_8, irr3_ss_mb$how_many_names_faces_connected_8)
+x7 <- irr::agree(z2_1)
+
+z2_2 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_8, irr3_ss_mb$how_many_names_faces_connected_8)
+x8 <- irr::kappa2(z2_2)
+
+ynames <- c("first_names", "last_names", "detectable", "identifiable")
+
+y1 <- c(x1$value,
+  x3$value,
+  x5$value,
+  x7$value)
+
+y2 <- c(x2$value,
+  x4$value,
+  x6$value,
+  x8$value)
+```
+
+```{r}
+tab5 <- tibble(code = ynames,
+       n = nrow(irr3_ss_mb),
+       agree = y1,
+       kappa = y2) %>% 
+  mutate(round = 5)
+```
+
+
+
+## Round 6
+
+```{r, include = FALSE}
+irr3 <- read_sheet("https://docs.google.com/spreadsheets/d/1ov2m-i0zBg-jMKo5_p94x3TVfZA_fGgj4xH7J6WXGrA/edit?ts=6082e88f#gid=2109185526", sheet = 8,
+                   skip = 1, col_types = "ccddddddddddddddddd")
+
+irr3 <- janitor::clean_names(irr3)
+
+irr3_ss <- irr3 %>% 
+    select(number_of_student_first_names_in_post:how_many_names_faces_connected_8)
+
+irr3_ss_tt <- irr3_ss %>% slice(1:20) %>% as_tibble()
+irr3_ss_mb <- irr3_ss %>% slice(23:42) %>% as_tibble()
+
+# first names
+x1 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+x2 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_first_names_in_post, irr3_ss_mb$number_of_student_first_names_in_post))
+
+# last names
+x3 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+x4 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_last_names_in_post, irr3_ss_mb$number_of_student_last_names_in_post))
+
+# detectable
+x5 <- irr::agree(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+x6 <- irr::kappa2(data.frame(irr3_ss_tt$number_of_student_faces_in_image, irr3_ss_mb$number_of_student_faces_in_image))
+
+# identifiable
+z2_1 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_8, irr3_ss_mb$how_many_names_faces_connected_8)
+x7 <- irr::agree(z2_1)
+
+z2_2 <- data.frame(irr3_ss_tt$how_many_names_faces_connected_8, irr3_ss_mb$how_many_names_faces_connected_8)
+x8 <- irr::kappa2(z2_2)
+
+ynames <- c("first_names", "last_names", "detectable", "identifiable")
+
+y1 <- c(x1$value,
+  x3$value,
+  x5$value,
+  x7$value)
+
+y2 <- c(x2$value,
+  x4$value,
+  x6$value,
+  x8$value)
+```
+
+```{r}
+tab6 <- tibble(code = ynames,
+       n = nrow(irr3_ss_mb),
+       agree = y1,
+       kappa = y2) %>% 
+  mutate(round = 6)
+```
+
+```{r}
+tab1 %>% 
+  bind_rows(tab2) %>% 
+  bind_rows(tab3) %>% 
+  bind_rows(tab4) %>% 
+  bind_rows(tab5) %>% 
+  bind_rows(tab6) %>% 
+  knitr::kable()
+```
+
+```{r}
+tab1 %>% 
+  bind_rows(tab2) %>% 
+  bind_rows(tab3) %>% 
+  bind_rows(tab4) %>% 
+  bind_rows(tab5) %>% 
+  bind_rows(tab6) %>% 
+  ggplot(aes(x = round, y = kappa, group = code, color = code)) +
+  geom_point() +
+  geom_line() +
+  scale_color_brewer(type = "qual", palette = 2) +
+  theme_bw()
+```
+
+```{r}
+tab1 %>% 
+  bind_rows(tab2) %>% 
+  bind_rows(tab3) %>% 
+  bind_rows(tab4) %>% 
+  bind_rows(tab5) %>% 
+  bind_rows(tab6) %>% 
+  ggplot(aes(x = round, y = agree, group = code, color = code)) +
+  geom_point() +
+  geom_line() +
+  scale_color_brewer(type = "qual", palette = 2) +
+  theme_bw()
+```
