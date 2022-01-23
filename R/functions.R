@@ -891,3 +891,26 @@ get_intercept_for_extrapolation <- function(l) {
     )
   )
 }
+
+get_extrapolation <- function(l, n=13870211) {
+  
+  log_odds_to_decimal <- function(log_odds){
+    odds <- log_odds %>% exp()
+    p <- odds/(odds+1)
+    return(p)
+  }
+  
+  m <- l$mnull
+  
+  intercept_p <- m$coefficients %>% as.numeric() %>% log_odds_to_decimal()
+  conf_lower_p <- m %>% confint() %>% (function(v){return(v[1])}) %>% as.numeric() %>% log_odds_to_decimal()
+  conf_upper_p <- m %>% confint() %>% (function(v){return(v[2])}) %>% as.numeric() %>% log_odds_to_decimal()
+  
+  return(
+    list(
+      extrapolation_estimate=(intercept_p*n) %>% round(),
+      extrapolation_lower=(conf_lower_p*n) %>% round(),
+      extrapolation_upper=(conf_upper_p*n) %>% round()
+    )
+  )
+}

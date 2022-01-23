@@ -69,8 +69,11 @@ list(
   tar_target(conventional_model_comparison_any_student_face, compare_models(exported_models_any_student_face)),
   
   # Addendum for RQ1 -------------------------------------------------------------------------------------------------
-   tar_target(get_model_intercept_face_connected, get_intercept_for_extrapolation(exported_models)),
+  tar_target(get_model_intercept_face_connected, get_intercept_for_extrapolation(exported_models)),
   tar_target(get_model_intercept_face_in_image, get_intercept_for_extrapolation(exported_models_any_student_face)),
+  
+  tar_target(face_connected_extrapolation_all_posts_with_image, get_extrapolation(exported_models, n=13870211)),
+  tar_target(face_in_image_extrapolation_all_posts_with_image, get_extrapolation(exported_models_any_student_face, n=13870211)),
   
   # Addendum for RQ2 -------------------------------------------------------------------------------------------------
   tar_target(direct_model_comparison_identifiable_students, compare_null_to_interaction_model(exported_models))
