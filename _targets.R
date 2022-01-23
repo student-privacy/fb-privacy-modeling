@@ -69,7 +69,7 @@ list(
   tar_target(conventional_model_comparison_any_student_face, compare_models(exported_models_any_student_face)),
   
   # Addendum for RQ1 -------------------------------------------------------------------------------------------------
-  tar_target(get_model_intercept_face_connected, get_intercept_for_extrapolation(exported_models)),
+   tar_target(get_model_intercept_face_connected, get_intercept_for_extrapolation(exported_models)),
   tar_target(get_model_intercept_face_in_image, get_intercept_for_extrapolation(exported_models_any_student_face)),
   
   # Addendum for RQ2 -------------------------------------------------------------------------------------------------

@@ -866,10 +866,28 @@ compare_null_to_interaction_model <- function(l) {
 }
 
 get_intercept_for_extrapolation <- function(l) {
-  
+
   m <- l$mnull
   
-  sjPlot::tab_model(m)
+  intercept_log_odds <- m$coefficients %>% as.numeric()
+  conf_lower_log_odds <- m %>% confint() %>% (function(v){return(v[1])}) %>% as.numeric()
+  conf_upper_log_odds <- m %>% confint() %>% (function(v){return(v[2])}) %>% as.numeric()
   
-  return(TRUE)
+  log_odds_to_percent <- function(log_odds){
+    odds <- log_odds %>% exp()
+    p <- odds/(odds+1)
+    p <- p*100  # decimal to percent
+    return(p)
+  }
+  
+  return(
+    list(
+      intercept_log_odds = intercept_log_odds %>% round(2) %>% format(nsmall=2),
+      conf_lower_log_odds = conf_lower_log_odds %>% round(2) %>% format(nsmall=2),
+      conf_upper_log_odds = conf_upper_log_odds %>% round(2) %>% format(nsmall=2),
+      intercept_p = intercept_log_odds %>% log_odds_to_percent() %>% round(2) %>% format(nsmall=2),
+      conf_lower_p = conf_lower_log_odds %>% log_odds_to_percent() %>% round(2) %>% format(nsmall=2),
+      conf_upper_p = conf_upper_log_odds %>% log_odds_to_percent() %>% round(2) %>% format(nsmall=2)
+    )
+  )
 }

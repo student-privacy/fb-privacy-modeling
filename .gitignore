@@ -7,3 +7,4 @@
 *.pdf
 *.rds
 /_targets/
+.Rproj.user
