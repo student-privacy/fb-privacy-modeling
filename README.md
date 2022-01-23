@@ -1,7 +1,10 @@
 # fb-privacy-modeling
 R-Targets Analysis Pipeline for Inferential Modeling of Hand-Coded Data of Facebook Posts.
 
-Supplementary code for manuscript *TITLE*.
+Please refer to [this repository](https://github.com/student-privacy/download-baseline-data) 
+for more information on the downloading process of the CrowdTangle data
+and this [repository](https://github.com/student-privacy/baseline-data) 
+for the data cleaning and aggregation process.
 
 Folder structure:
 
