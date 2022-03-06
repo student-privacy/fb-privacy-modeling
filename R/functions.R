@@ -240,6 +240,7 @@ select_features <- function(d, target_var='') {
   
   d2 <- d %>% 
     select(
+      est_population_5_17_poverty_pct,
       interaction_count,
       # like_count, # POST LEVEL vars, to be discussed
       # share_count, 
@@ -257,11 +258,11 @@ select_features <- function(d, target_var='') {
       #districts_n_students_black,
       #districts_n_students_hispanic,
       #districts_n_students_multirace,
-      #districts_pupil_teacher_ratio,
-      #districts_n_students_free_reduced_lunch, # drops an additional 24 cases due to missing values
+      districts_pupil_teacher_ratio,
+      districts_n_students_free_reduced_lunch, # drops an additional 24 cases due to missing values
       n_posts_account,
-      #districts_agency_type_district_2017_18,
-      #districts_urban_centric_locale_district_2017_18,
+      districts_agency_type_district_2017_18,
+      districts_urban_centric_locale_district_2017_18,
       year_of_post,
       #n_names,
       #has_names,
@@ -272,6 +273,12 @@ select_features <- function(d, target_var='') {
     )
   
   return(d2)
+}
+
+impute_data <- function(d){
+  tempData <- mice(d, m=5, maxit=100, seed=500, printFlag=FALSE)
+  d <- complete(tempData, 1)
+  return(d)
 }
 
 select_complete_cases <- function(d) {
@@ -359,6 +366,7 @@ preprocess_sample <- function(d) {
   
   d <- d %>% 
     select_features() %>% 
+    impute_data() %>% 
     select_complete_cases() %>% 
     scale_and_create_features() %>% 
     final_touches_preproc()
@@ -556,10 +564,12 @@ extrapolate_poisson_model_identifiable_students <- function(d, m) {
   return(newdat)
 }
 
-preprocess_sample_gridsearched_any_student_face <- function(d, include_frl=FALSE) {
+preprocess_sample_gridsearched_any_student_face <- function(d) {
   
   d <- d %>% 
-    select_gridsearched_predictors_any_student_face(target_var = 'n_student_faces_binary', include_frl=include_frl) %>% 
+    #select_features() %>%
+    select_gridsearched_predictors_any_student_face(target_var = 'n_student_faces_binary') %>% 
+    impute_data() %>% 
     select_complete_cases() %>% 
     scale_numeric_features() %>% 
     final_touches_preproc()
@@ -575,23 +585,28 @@ scale_numeric_features <- function(d) {
   return(d)
 }
 
-select_gridsearched_predictors_any_student_face <- function(d, target_var = 'n_student_faces_binary', include_frl=FALSE) {
+select_gridsearched_predictors_any_student_face <- function(d, target_var = 'n_student_faces_binary') {
   
   if (target_var != '') {
     d <- d %>% select(-face_connected)
     names(d)[names(d) == target_var] <- 'face_connected'
   }
   
-  # GRIDSEARCH RESULTS 
-  #$selected_predictors
-  #[1] "n_posts_account"                                      "districts_urban_centric_locale_district_2017_18_Town"
-  #[3] "est_population_5_17_poverty_pct"    
+  # Gridsearch results
+  # [1] "districts_urban_centric_locale_district_2017_18_Town" "districts_n_schools"                                 
+  #[3] "n_posts_account"                                      "est_population_5_17_poverty_pct"                     
+  #[5] "districts_n_students_free_reduced_lunch"              "districts_agency_type_district_2017_18_Charter"      
+  #[7] "is_school_TRUE."   
   
   d <- d %>% 
     select(
+      districts_agency_type_district_2017_18,
       districts_urban_centric_locale_district_2017_18,
       est_population_5_17_poverty_pct,
       n_posts_account,
+      districts_n_schools,
+      districts_n_students_free_reduced_lunch,
+      is_school,
       # Engagement Vars and Year of Post, Variables of Interest
       interaction_count,
       comment_count,
@@ -602,12 +617,9 @@ select_gridsearched_predictors_any_student_face <- function(d, target_var = 'n_s
     ) %>%
     rename(
       locale = districts_urban_centric_locale_district_2017_18,
+      agency_type = districts_agency_type_district_2017_18,
       saipe_poverty_population_percent = est_population_5_17_poverty_pct
     )
-  
-  if (!include_frl){
-    d <- d %>% select(-matches('districts_n_students_free_reduced_lunch'))
-  }
   
   return(d)
 }
@@ -615,7 +627,9 @@ select_gridsearched_predictors_any_student_face <- function(d, target_var = 'n_s
 preprocess_sample_gridsearched <- function(d) {
   
   d <- d %>% 
+    #select_features() %>% 
     select_gridsearched_predictors() %>% 
+    impute_data() %>% 
     select_complete_cases() %>% 
     scale_numeric_features() %>% 
     final_touches_preproc()
@@ -629,6 +643,9 @@ select_gridsearched_predictors <- function(d, target_var = '') {
     d <- d %>% select(-face_connected)
     names(d)[names(d) == target_var] <- 'face_connected'
   }
+  
+  # Gridsearch results
+  #[1] account_subscriber_count" "locale_Suburb" "locale_Town" "agency_type_Charter" 
   
   d <- d %>% 
     select(
@@ -661,6 +678,7 @@ preprocess_sample_any_student_face <- function(d) {
   
   d <- d %>% 
     select_features(target_var = 'n_student_faces_binary') %>% 
+    impute_data() %>% 
     select_complete_cases() %>% 
     scale_numeric_features() %>% 
     final_touches_preproc()
@@ -670,36 +688,19 @@ preprocess_sample_any_student_face <- function(d) {
 
 export_glm_models_for_inference <- function(d, reference = 'main_analysis') {
   
-  if (reference == 'main_analysis') {
+  if (reference == 'any_connected_face') {
     
     mnull <- glm(face_connected ~ 1, d, family='binomial')
     
-    m0 <- glm(face_connected ~ locale + agency_type, d, family='binomial')
+    m0 <- glm(face_connected ~ locale+agency_type+account_subscriber_count, d, family='binomial')
     
-    m1 <- glm(face_connected ~ year_of_post+locale + agency_type, d, family='binomial')
+    m1 <- glm(face_connected ~ locale+agency_type+account_subscriber_count+year_of_post, d, family='binomial')
     
-    m2 <- glm(face_connected ~ account_subscriber_count+interaction_count+year_of_post+locale + agency_type, d, family='binomial')
+    m2 <- glm(face_connected ~ locale+agency_type+account_subscriber_count+interaction_count+year_of_post, d, family='binomial')
     
-    m3 <- glm(face_connected ~ account_subscriber_count+interaction_count+comment_count+year_of_post+locale + agency_type, d, family='binomial')
+    m3 <- glm(face_connected ~ locale+agency_type+account_subscriber_count+interaction_count+comment_count+year_of_post, d, family='binomial')
     
-    m4 <- glm(face_connected ~ account_subscriber_count*year_of_post+
-                interaction_count*year_of_post+
-                comment_count*year_of_post+
-                locale + agency_type, d, family='binomial')
-  }
-  else if (reference == 'any_connected_face') {
-    
-    mnull <- glm(face_connected ~ 1, d, family='binomial')
-    
-    m0 <- glm(face_connected ~ 1, d, family='binomial')
-    
-    m1 <- glm(face_connected ~ year_of_post, d, family='binomial')
-    
-    m2 <- glm(face_connected ~ account_subscriber_count+interaction_count+year_of_post, d, family='binomial')
-    
-    m3 <- glm(face_connected ~ account_subscriber_count+interaction_count+comment_count+year_of_post, d, family='binomial')
-    
-    m4 <- glm(face_connected ~ account_subscriber_count*year_of_post+
+    m4 <- glm(face_connected ~ locale+agency_type+account_subscriber_count*year_of_post+
                 interaction_count*year_of_post+
                 comment_count*year_of_post, d, family='binomial')
   }
@@ -711,26 +712,37 @@ export_glm_models_for_inference <- function(d, reference = 'main_analysis') {
     m0 <- glm(face_connected ~ 
                 locale +
                 n_posts_account + 
-                saipe_poverty_population_percent, d, family='binomial')
+                districts_n_schools + 
+                saipe_poverty_population_percent +
+                districts_n_students_free_reduced_lunch + is_school, d, family='binomial')
     
-    m1 <- glm(face_connected ~ locale +
+    m1 <- glm(face_connected ~
+                locale +
                 n_posts_account + 
-                saipe_poverty_population_percent+ 
+                districts_n_schools + 
+                saipe_poverty_population_percent +
+                districts_n_students_free_reduced_lunch + is_school +
                 year_of_post, d, family='binomial')
     
     m2 <- glm(face_connected ~ locale +
                 n_posts_account + 
-                saipe_poverty_population_percent+ 
+                districts_n_schools + 
+                saipe_poverty_population_percent +
+                districts_n_students_free_reduced_lunch + is_school +
                 account_subscriber_count+interaction_count+year_of_post, d, family='binomial')
     
     m3 <- glm(face_connected ~ locale +
                 n_posts_account + 
-                saipe_poverty_population_percent + 
+                districts_n_schools + 
+                saipe_poverty_population_percent +
+                districts_n_students_free_reduced_lunch + is_school +
                 account_subscriber_count+interaction_count+comment_count+year_of_post, d, family='binomial')
     
     m4 <- glm(face_connected ~ locale +
                 n_posts_account + 
-                saipe_poverty_population_percent + 
+                districts_n_schools + 
+                saipe_poverty_population_percent +
+                districts_n_students_free_reduced_lunch + is_school +
                 account_subscriber_count*year_of_post+
                 interaction_count*year_of_post+
                 comment_count*year_of_post, d, family='binomial')

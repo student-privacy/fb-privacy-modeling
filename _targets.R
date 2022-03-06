@@ -7,7 +7,7 @@ lapply(list.files("./R", full.names = TRUE), source)
 # Set target-specific options such as packages.
 options(tidyverse.quiet = TRUE)
 tar_option_set(packages = c(
-  "tidyverse", "data.table", "tidymodels", "xgboost", "tidytext"
+  "tidyverse", "data.table", "tidymodels", "xgboost", "tidytext", "mice"
 ))
 
 # Define targets
@@ -31,7 +31,7 @@ list(
   # Inspection and pre-processing ----------------------------------------------------
   
   # # DESCRIBE DATA DESCRIPTIVELY THROUGH NCES VARIABLES
-  tar_target(na_stats, final_cleaned_sample %>% map_dbl(~sum(is.na(.))/length(is.na(.)))),
+  # tar_target(na_stats, final_cleaned_sample %>% select_features() %>% map_dbl(~sum(is.na(.))/length(is.na(.)))),
 
   tar_target(binary_modeling_data, preprocess_sample(final_cleaned_sample)),
   # 
@@ -46,7 +46,7 @@ list(
   tar_target(interaction_model_gridsearched, make_faces_connected_binary_recipe_lasso_baseline(binary_modeling_data_gridsearched, remove_vars_of_interest=FALSE,  include_interaction=TRUE)),
   # 
   # # Modeling for Inference and Model Comparisons --------------------------------------------------------
-  tar_target(exported_models, export_glm_models_for_inference(binary_modeling_data_gridsearched)),
+  tar_target(exported_models, export_glm_models_for_inference(binary_modeling_data_gridsearched, reference='any_connected_face')),
   tar_target(conventional_model_comparison, compare_models(exported_models)),
   # 
   # #### Modeling of whether ANY student was depicted in the image (identifiable or not) ------------------------------
